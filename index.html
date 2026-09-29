@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>云南三日 · 昆明→大理→丽江</title>
+<link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
+<script src="vendor/leaflet/leaflet.js"></script>
+<style>
+  :root { --bg:#f6f4ef; --card:#fff; --ink:#1c1b19; --muted:#6b675f; --line:#e8e2d6; --accent:#0f766e; --d1:#2563eb; --d2:#c2410c; --d3:#7c3aed; --d4:#16a34a; --shadow:0 10px 30px rgba(28,27,25,.08); }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif; color:var(--ink); background:var(--bg); line-height:1.55; }
+  a { color:var(--accent); text-decoration:none; }
+  .wrap { max-width:980px; margin:0 auto; padding:28px 18px 64px; }
+  header.hero { padding:28px; border-radius:28px; color:#fff; background:linear-gradient(135deg,#0f766e,#115e59 40%,#9a3412 130%); box-shadow:var(--shadow); }
+  .hero h1 { margin:0 0 6px; font-size:clamp(1.45rem,3vw,2rem); }
+  .hero p { margin:0; opacity:.92; }
+  .meta { display:flex; flex-wrap:wrap; gap:8px; margin-top:14px; }
+  .chip { padding:6px 12px; border-radius:999px; background:rgba(255,255,255,.16); font-size:13px; }
+  .section { margin-top:26px; }
+  .section h2 { margin:0 0 12px; font-size:1.15rem; display:flex; align-items:center; gap:10px; }
+  .dot { width:10px; height:10px; border-radius:50%; background:var(--accent); display:inline-block; }
+  .map-shell { background:var(--card); border:1px solid var(--line); border-radius:22px; overflow:hidden; box-shadow:var(--shadow); position:relative; }
+  #routeMap { width:100%; height:min(48vh,420px); }
+  .day-map { width:100%; height:300px; border-radius:14px; border:1px solid var(--line); margin:0 0 14px; }
+  .leg-map {
+    width: calc(100% + 14px + 14px + 12px + 72px);
+    max-width: none;
+    margin: 10px 0 0 calc(-14px - 12px - 72px);
+    height: 260px;
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    box-sizing: border-box;
+  }
+  .legend { position:absolute; z-index:500; left:12px; bottom:12px; background:rgba(255,255,255,.95); border:1px solid var(--line); border-radius:14px; padding:10px 12px; font-size:13px; max-width:46%; }
+  .leg { display:flex; align-items:center; gap:8px; margin:4px 0; }
+  .sw { width:18px; height:4px; border-radius:4px; }
+  .day { background:var(--card); border:1px solid var(--line); border-radius:22px; padding:18px; box-shadow:var(--shadow); }
+  .timeline { display:grid; gap:12px; }
+  .item { display:grid; grid-template-columns:72px 1fr; gap:8px 12px; align-items:start; }
+  .time { font-weight:700; color:var(--accent); font-size:13px; }
+  .item-body { background:#faf8f4; border-radius:14px; padding:12px 14px; }
+  .item-body strong { display:block; margin:4px 0; }
+  .roads { margin:0 0 4px; color:var(--muted); font-size:13px; }
+  .tagrow { margin-bottom:2px; display:flex; flex-wrap:wrap; gap:6px; }
+  .mode { font-size:12px; padding:3px 8px; border-radius:999px; font-weight:600; }
+  .mode.taxi { background:#ffedd5; color:#c2410c; }
+  .mode.hsr { background:#dbeafe; color:#1d4ed8; }
+  .mode.walk { background:#dcfce7; color:#15803d; }
+  .mode.hotel { background:#f3e8ff; color:#7c3aed; }
+  .links { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
+  .mini { font-size:12px; padding:8px 12px; border-radius:999px; background:#fff; border:1px solid var(--line); color:var(--ink); }
+  .mini.primary { background:#ff6a00; border-color:#ff6a00; color:#fff; font-weight:600; }
+  .note { margin-top:10px; padding:12px 14px; border-radius:14px; background:#ecfdf5; color:#065f46; font-size:13px; }
+  .warn { margin-top:10px; padding:12px 14px; border-radius:14px; background:#fff7ed; color:#9a3412; font-size:13px; }
+  .hint { color:var(--muted); font-size:13px; margin:8px 0 0; }
+  .hotel-card { display:grid; gap:10px; }
+  .hotel-card a.dp { color:#ff6a00; font-weight:600; }
+  footer { margin-top:28px; color:var(--muted); font-size:12px; text-align:center; }
+  .map-pin { background:transparent; border:none; }
+  .pin-badge {
+    width:22px; height:22px; border-radius:50%;
+    color:#fff; font-weight:700; font-size:11px; line-height:18px; text-align:center;
+    border:2px solid #fff; box-shadow:0 2px 6px rgba(0,0,0,.28);
+  }
+  .leaflet-tooltip.map-label {
+    background:rgba(255,255,255,.96); border:1px solid var(--line); border-radius:8px;
+    padding:2px 8px; font-size:12px; font-weight:600; color:var(--ink);
+    box-shadow:0 2px 8px rgba(0,0,0,.12); white-space:nowrap;
+  }
+  .leaflet-tooltip.map-label::before { display:none; }
+  .day-legend {
+    display:flex; flex-wrap:wrap; gap:6px 12px; margin:0 0 12px;
+    font-size:12px; color:var(--muted);
+  }
+  .day-legend .pin-leg { display:inline-flex; align-items:center; gap:5px; }
+  .day-legend .pin-mini {
+    width:16px; height:16px; border-radius:50%; color:#fff;
+    font-size:10px; font-weight:700; display:inline-flex; align-items:center; justify-content:center;
+  }
+  @media (max-width:560px) {
+    .item { grid-template-columns:52px 1fr; gap:8px 10px; }
+    .leg-map {
+      width: calc(100% + 14px + 14px + 10px + 52px);
+      margin-left: calc(-14px - 10px - 52px);
+      height: 240px;
+    }
+    .day-map { height:260px; }
+    .wrap { padding:16px 10px 48px; }
+    .day { padding:14px; }
+    .legend { font-size:12px; max-width:58%; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="hero">
+    <h1>云南三日 · 昆明 → 大理 → 丽江</h1>
+    <p>2026-10-08 长水抵达 → 10-11 三义离开。城际高铁；市内打车/驾车，少走路。票价与时刻以 12306 / 高德为准。</p>
+    <div class="meta">
+      <span class="chip">10/8–10/11</span>
+      <span class="chip">高铁城际</span>
+      <span class="chip">打车市内</span>
+      <span class="chip">约 26℃ · 可能有雨</span>
+    </div>
+  </header>
+
+  <section class="section" id="map">
+    <h2><span class="dot"></span>路线总览</h2>
+    <div class="map-shell">
+      <div id="routeMap"></div>
+      <div class="legend">
+        <strong>行程</strong>
+        <div class="leg"><span class="sw" style="background:var(--d1)"></span>Day1 昆明</div>
+        <div class="leg"><span class="sw" style="background:var(--d2)"></span>Day2 大理</div>
+        <div class="leg"><span class="sw" style="background:var(--d3)"></span>Day3 丽江</div>
+        <div class="leg"><span class="sw" style="background:var(--d4)"></span>Day4 返程</div>
+      </div>
+    </div>
+    <p class="hint">点击橙色按钮可在高德 App 打开对应驾车路线；折线示意走向，实时路况以高德为准。</p>
+  </section>
+
+  <section class="section" id="hotels">
+    <h2><span class="dot"></span>住宿（默认）</h2>
+    <div class="day hotel-card">
+      <div class="item">
+        <div class="time">10/8<br>昆明</div>
+        <div class="item-body">
+          <strong>如家精选（昆明白云路同德广场店）</strong>
+          <p class="roads">102.720682, 25.067143 · <a class="dp" href="http://dpurl.cn/diYBoKDz" target="_blank" rel="noopener">大众点评</a></p>
+          <p class="roads">长水→店约 <b>30 km / 36′</b>；店→昆明站约 <b>7.2 km / 30′</b>（打车参考）。</p>
+          <div class="links">
+            <a class="mini primary" href="amapuri://navi?sourceApplication=yunnan_trip&amp;lon=102.720682&amp;lat=25.067143&amp;dev=0&amp;style=2">导航到酒店</a>
+            <a class="mini" href="amapuri://route/plan/?slat=25.099565&amp;slon=102.935835&amp;sname=%E9%95%BF%E6%B0%B4%E6%9C%BA%E5%9C%BA&amp;dlat=25.067143&amp;dlon=102.720682&amp;dname=%E5%A6%82%E5%AE%B6%E7%B2%BE%E9%80%89%C2%B7%E7%99%BD%E4%BA%91%E8%B7%AF&amp;dev=0&amp;t=0">长水→酒店</a>
+            <a class="mini" href="amapuri://route/plan/?slat=25.067143&amp;slon=102.720682&amp;sname=%E5%A6%82%E5%AE%B6%E7%B2%BE%E9%80%89%C2%B7%E7%99%BD%E4%BA%91%E8%B7%AF&amp;dlat=25.015257&amp;dlon=102.722277&amp;dname=%E6%98%86%E6%98%8E%E7%AB%99&amp;dev=0&amp;t=0">酒店→昆明站</a>
+          </div>
+        </div>
+      </div>
+      <div class="item">
+        <div class="time">10/9<br>大理</div>
+        <div class="item-body">
+          <strong>星悦花影悠闲度假美宿（大理古城店）</strong>
+          <p class="roads">100.169304, 25.696677 · <a class="dp" href="http://dpurl.cn/s3flpcpz" target="_blank" rel="noopener">大众点评</a></p>
+          <p class="roads">大理站→店约 <b>18 km / 62′</b>；店→三塔约 <b>4.4 km / 17′</b>。</p>
+          <div class="links">
+            <a class="mini primary" href="amapuri://navi?sourceApplication=yunnan_trip&amp;lon=100.169304&amp;lat=25.696677&amp;dev=0&amp;style=2">导航到酒店</a>
+            <a class="mini" href="amapuri://route/plan/?slat=25.589569&amp;slon=100.250635&amp;sname=%E5%A4%A7%E7%90%86%E7%AB%99&amp;dlat=25.696677&amp;dlon=100.169304&amp;dname=%E6%98%9F%E6%82%A6%E8%8A%B1%E5%BD%B1%C2%B7%E5%8F%A4%E5%9F%8E&amp;dev=0&amp;t=0">大理站→酒店</a>
+            <a class="mini" href="amapuri://route/plan/?slat=25.696677&amp;slon=100.169304&amp;sname=%E6%98%9F%E6%82%A6%E8%8A%B1%E5%BD%B1%C2%B7%E5%8F%A4%E5%9F%8E&amp;dlat=25.704129&amp;dlon=100.143044&amp;dname=%E5%B4%87%E5%9C%A3%E5%AF%BA%E4%B8%89%E5%A1%94&amp;dev=0&amp;t=0">酒店→三塔</a>
+          </div>
+        </div>
+      </div>
+      <div class="item">
+        <div class="time">10/10<br>丽江</div>
+        <div class="item-body">
+          <strong>龙跃·日照金山智能酒店（大水车店）</strong>
+          <p class="roads">100.231380, 26.880918 · <a class="dp" href="http://dpurl.cn/yGiVQSnz" target="_blank" rel="noopener">大众点评</a></p>
+          <p class="roads">丽江站→店约 <b>10.5 km / 33′</b>；店→黑龙潭约 <b>1.6 km / 14′</b>；店→三义约 <b>30 km / 40′</b>。</p>
+          <div class="links">
+            <a class="mini primary" href="amapuri://navi?sourceApplication=yunnan_trip&amp;lon=100.23138&amp;lat=26.880918&amp;dev=0&amp;style=2">导航到酒店</a>
+            <a class="mini" href="amapuri://route/plan/?slat=26.810521&amp;slon=100.252694&amp;sname=%E4%B8%BD%E6%B1%9F%E7%AB%99&amp;dlat=26.880918&amp;dlon=100.23138&amp;dname=%E9%BE%99%E8%B7%83%C2%B7%E5%A4%A7%E6%B0%B4%E8%BD%A6&amp;dev=0&amp;t=0">丽江站→酒店</a>
+            <a class="mini" href="amapuri://route/plan/?slat=26.880918&amp;slon=100.23138&amp;sname=%E9%BE%99%E8%B7%83%C2%B7%E5%A4%A7%E6%B0%B4%E8%BD%A6&amp;dlat=26.888448&amp;dlon=100.239852&amp;dname=%E9%BB%91%E9%BE%99%E6%BD%AD&amp;dev=0&amp;t=0">酒店→黑龙潭</a>
+            <a class="mini" href="amapuri://route/plan/?slat=26.880918&amp;slon=100.23138&amp;sname=%E9%BE%99%E8%B7%83%C2%B7%E5%A4%A7%E6%B0%B4%E8%BD%A6&amp;dlat=26.671508&amp;dlon=100.24646&amp;dname=%E4%B8%89%E4%B9%89%E6%9C%BA%E5%9C%BA&amp;dev=0&amp;t=0">酒店→三义</a>
+          </div>
+        </div>
+      </div>
+      <div class="note">古城内限行、停车难：外围下车或打车到门口，城内只短逛主街。行李优先寄存再出门。</div>
+    </div>
+  </section>
+
+  <section class="section" id="day1">
+    <h2><span class="dot" style="background:var(--d1)"></span>Day1 · 10/8 昆明</h2>
+    <div class="day">
+      <div id="map-day1" class="day-map"></div>
+      <div class="day-legend">
+        <span class="pin-leg"><span class="pin-mini" style="background:var(--d1)">机</span>长水</span>
+        <span class="pin-leg"><span class="pin-mini" style="background:var(--d1)">宿</span>酒店</span>
+        <span class="pin-leg"><span class="pin-mini" style="background:var(--d1)">翠</span>翠湖</span>
+        <span class="pin-leg"><span class="pin-mini" style="background:var(--d1)">金</span>金马碧鸡</span>
+        <span class="pin-leg"><span class="pin-mini" style="background:var(--d1)">海</span>海埂大坝</span>
+      </div>
+      <div class="timeline">
+        <div class="item">
+          <div class="time">抵达</div>
+          <div class="item-body">
+            <div class="tagrow"><span class="mode taxi">打车主</span></div>
+            <strong>长水机场 → 如家精选（寄存行李）</strong>
+            <p class="roads">约 <b>30 km / 36′</b>。到店先寄存，不必等入住办理完再出门。</p>
+            <div class="links">
+              <a class="mini primary" href="amapuri://route/plan/?slat=25.099565&amp;slon=102.935835&amp;sname=%E9%95%BF%E6%B0%B4%E6%9C%BA%E5%9C%BA&amp;dlat=25.067143&amp;dlon=102.720682&amp;dname=%E5%A6%82%E5%AE%B6%E7%B2%BE%E9%80%89%C2%B7%E7%99%BD%E4%BA%91%E8%B7%AF&amp;dev=0&amp;t=0">高德驾车</a>
+              <a class="mini" href="amapuri://navi?sourceApplication=yunnan_trip&amp;lon=102.720682&amp;lat=25.067143&amp;dev=0&amp;style=2">导航到酒店</a>
+            </div>
+            <div id="leg-d1_airport_hotel" class="leg-map"></div>
+          </div>
+        </div>
+        <div class="item">
+          <div class="time">上午</div>
+          <div class="item-body">
+            <div class="tagrow"><span class="mode taxi">打车主</span></div>
+            <strong>酒店 → 翠湖公园</strong>
+            <p class="roads">打车约 <b>5.2 km / 21′</b>（高德此刻）。公园评分 4.8 · 短停散步即可，少绕园。</p>
+            <div class="links">
+              <a class="mini primary" href="amapuri://route/plan/?slat=25.067143&amp;slon=102.720682&amp;sname=%E5%A6%82%E5%AE%B6%E7%B2%BE%E9%80%89%C2%B7%E7%99%BD%E4%BA%91%E8%B7%AF&amp;dlat=25.048416&amp;dlon=102.703621&amp;dname=%E7%BF%A0%E6%B9%96%E5%85%AC%E5%9B%AD&amp;dev=0&amp;t=0">高德驾车</a>
+              <a class="mini" href="amapuri://navi?sourceApplication=yunnan_trip&amp;lon=102.703621&amp;lat=25.048416&amp;dev=0&amp;style=2">导航到翠湖</a>
+            </div>
+            <div id="leg-d1_hotel_cuihu" class="leg-map"></div>
+          </div>
+        </div>
+        <div class="item">
+          <div class="time">午后</div>
+          <div class="item-body">
+            <div class="tagrow"><span class="mode taxi">打车主</span><span class="mode walk">街区短逛</span></div>
+            <strong>翠湖 → 金马碧鸡坊 / 南强街</strong>
+            <p class="roads">约 <b>4.5 km / 24′</b>（高德参考）。金马碧鸡坊评分 4.7 · 附近南强街/南屏一带可觅食短逛。</p>
+            <div class="links">
+              <a class="mini primary" href="amapuri://route/plan/?slat=25.048416&amp;slon=102.703621&amp;sname=%E7%BF%A0%E6%B9%96%E5%85%AC%E5%9B%AD&amp;dlat=25.033329&amp;dlon=102.709779&amp;dname=%E9%87%91%E9%A9%AC%E7%A2%A7%E9%B8%A1%E5%9D%8A&amp;dev=0&amp;t=0">高德驾车</a>
+              <a class="mini" href="amapuri://navi?sourceApplication=yunnan_trip&amp;lon=102.709779&amp;lat=25.033329&amp;dev=0&amp;style=2">导航到金马碧鸡坊</a>
+            </div>
+            <div id="leg-d1_cuihu_jinma" class="leg-map"></div>
+          </div>
+        </div>
+        <div class="item">
+          <div class="time">下午</div>
+          <div class="item-body">
+            <div class="tagrow"><span class="mode taxi">打车主</span></div>
+            <strong>金马碧鸡坊 → 海埂大坝（滇池）</strong>
+            <p class="roads">约 <b>13 km / 30′</b>（此前高德参考；路况会变）。停车即拍，步量可控；傍晚光线好。</p>
+            <div class="links">
+              <a class="mini primary" href="amapuri://route/plan/?slat=25.033329&amp;slon=102.709779&amp;sname=%E9%87%91%E9%A9%AC%E7%A2%A7%E9%B8%A1%E5%9D%8A&amp;dlat=24.973588&amp;dlon=102.650825&amp;dname=%E6%B5%B7%E5%9F%82%E5%A4%A7%E5%9D%9D&amp;dev=0&amp;t=0">高德驾车</a>
+              <a class="mini" href="amapuri://navi?sourceApplication=yunnan_trip&amp;lon=102.650825&amp;lat=24.973588&amp;dev=0&amp;style=2">导航到海埂大坝</a>
+            </div>
+            <div id="leg-d1_jinma_haigeng" class="leg-map"></div>
+          </div>
+        </div>
+        <div class="item">
+          <div class="time">晚上</div>
+          <div class="item-body">
+            <div class="tagrow"><span class="mode taxi">打车主</span></div>
+            <strong>海埂大坝 → 酒店</strong>
+            <p class="roads">回店早睡，备次日早高铁。可在酒店/同德广场附近简便晚饭。</p>
+            <div class="links">
+              <a class="mini primary" href="amapuri://route/plan/?slat=24.973588&amp;slon=102.650825&amp;sname=%E6%B5%B7%E5%9F%82%E5%A4%A7%E5%9D%9D&amp;dlat=25.067143&amp;dlon=102.720682&amp;dname=%E5%A6%82%E5%AE%B6%E7%B2%BE%E9%80%89%C2%B7%E7%99%BD%E4%BA%91%E8%B7%AF&amp;dev=0&amp;t=0">高德驾车回酒店</a>
+            </div>
+            <div id="leg-d1_haigeng_hotel" class="leg-map"></div>
+          </div>
+        </div>
+      </div>
+      <div class="note">市内全程打车串联；不硬塞西山/石林（走路多、车程长）。防晒保湿，滇池边注意防滑。</div>
+    </div>
+  </section>
+
+  <section class="section" id="day2">
+    <h2><span class="dot" style="background:var(--d2)"></span>Day2 · 10/9 大理</h2>
+    <div class="day">
+      <div id="map-day2" class="day-map"></div>
+      <div class="day-legend">
+        <span class="pin-leg"><span class="pin-mini" style="background:var(--d2)">站</span>昆明站</span>
+        <span class="pin-leg"><span class="pin-mini" style="background:var(--d2)">站</span>大理站</span>
+        <span class="pin-leg"><span class="pin-mini" style="background:var(--d2)">宿</span>古城酒店</span>
+        <span class="pin-leg"><span class="pin-mini" style="background:var(--d2)">塔</span>三塔</span>
+        <span class="pin-leg"><span class="pin-mini" style="background:var(--d2)">才</span>才村</span>
+      </div>
+      <div class="timeline">
+        <div class="item">
+          <div class="time">上午</div>
+          <div class="item-body">
+            <div class="tagrow"><span class="mode taxi">打车</span><span class="mode hsr">高铁</span></div>
+            <strong>酒店 → 昆明站 → 大理站</strong>
+            <p class="roads">店→昆明站约 <b>7.2 km / 30′</b>。高铁约 <b>2h8′</b>，二等座约 <b>¥145</b>（参考）。美团当日或有昆明南直达，本行程用昆明站少一段进城。</p>
+            <p class="roads">车次/余票以 12306 为准；建议早班，预留安检进站。</p>
+            <div class="links">
+              <a class="mini primary" href="amapuri://route/plan/?slat=25.067143&amp;slon=102.720682&amp;sname=%E5%A6%82%E5%AE%B6%E7%B2%BE%E9%80%89%C2%B7%E7%99%BD%E4%BA%91%E8%B7%AF&amp;dlat=25.015257&amp;dlon=102.722277&amp;dname=%E6%98%86%E6%98%8E%E7%AB%99&amp;dev=0&amp;t=0">酒店→昆明站</a>
+              <a class="mini" href="amapuri://navi?sourceApplication=yunnan_trip&amp;lon=102.722277&amp;lat=25.015257&amp;dev=0&amp;style=2">导航到昆明站</a>
+            </div>
+            <div id="leg-d2_hotel_station" class="leg-map"></div>
+            <div id="leg-d2_hsr" class="leg-map"></div>
+          </div>
+        </div>
+        <div class="item">
+          <div class="time">到站</div>
+          <div class="item-body">
+            <div class="tagrow"><span class="mode taxi">打车主</span><span class="mode hotel">入住</span></div>
+            <strong>大理站 → 星悦花影（古城店）</strong>
+            <p class="roads">约 <b>18 km / 62′</b>。到店寄存/入住后短逛古城主街即可，勿钻深巷。</p>
+            <div class="links">
+              <a class="mini primary" href="amapuri://route/plan/?slat=25.589569&amp;slon=100.250635&amp;sname=%E5%A4%A7%E7%90%86%E7%AB%99&amp;dlat=25.696677&amp;dlon=100.169304&amp;dname=%E6%98%9F%E6%82%A6%E8%8A%B1%E5%BD%B1%C2%B7%E5%8F%A4%E5%9F%8E&amp;dev=0&amp;t=0">高德驾车</a>
+              <a class="mini" href="amapuri://navi?sourceApplication=yunnan_trip&amp;lon=100.169304&amp;lat=25.696677&amp;dev=0&amp;style=2">导航到酒店</a>
+            </div>
+            <div id="leg-d2_station_hotel" class="leg-map"></div>
+          </div>
+        </div>
+        <div class="item">
+          <div class="time">下午</div>
+          <div class="item-body">
+            <div class="tagrow"><span class="mode taxi">打车主</span></div>
+            <strong>酒店 → 崇圣寺三塔</strong>
+            <p class="roads">约 <b>4.4 km / 17′</b>。5A · 评分 4.7 · 开放约 07:30–18:30。门票建议美团/官网提前看。</p>
+            <div class="links">
+              <a class="mini primary" href="amapuri://route/plan/?slat=25.696677&amp;slon=100.169304&amp;sname=%E6%98%9F%E6%82%A6%E8%8A%B1%E5%BD%B1%C2%B7%E5%8F%A4%E5%9F%8E&amp;dlat=25.704129&amp;dlon=100.143044&amp;dname=%E5%B4%87%E5%9C%A3%E5%AF%BA%E4%B8%89%E5%A1%94&amp;dev=0&amp;t=0">高德驾车</a>
+              <a class="mini" href="amapuri://navi?sourceApplication=yunnan_trip&amp;lon=100.143044&amp;lat=25.704129&amp;dev=0&amp;style=2">导航到三塔</a>
+            </div>
+            <div id="leg-d2_hotel_santa" class="leg-map"></div>
+          </div>
+        </div>
+        <div class="item">
+          <div class="time">傍晚</div>
+          <div class="item-body">
+            <div class="tagrow"><span class="mode taxi">打车主</span></div>
+            <strong>三塔 → 才村码头（洱海）</strong>
+            <p class="roads">约 <b>6.7 km / 23′</b>（高德此刻）。停车拍洱海即走；双廊东线远，本日不硬塞。</p>
+            <div class="links">
+              <a class="mini primary" href="amapuri://route/plan/?slat=25.704129&amp;slon=100.143044&amp;sname=%E5%B4%87%E5%9C%A3%E5%AF%BA%E4%B8%89%E5%A1%94&amp;dlat=25.718727&amp;dlon=100.193637&amp;dname=%E6%89%8D%E6%9D%91%E7%A0%81%E5%A4%B4&amp;dev=0&amp;t=0">高德驾车</a>
+              <a class="mini" href="amapuri://navi?sourceApplication=yunnan_trip&amp;lon=100.193637&amp;lat=25.718727&amp;dev=0&amp;style=2">导航到才村</a>
+            </div>
+            <div id="leg-d2_santa_caicun" class="leg-map"></div>
+          </div>
+        </div>
+        <div class="item">
+          <div class="time">晚上</div>
+          <div class="item-body">
+            <div class="tagrow"><span class="mode taxi">打车主</span></div>
+            <strong>才村 → 回古城酒店</strong>
+            <p class="roads">古城内晚饭任选（洋人街/人民路一带），早休息备次日转丽江。</p>
+            <div class="links">
+              <a class="mini primary" href="amapuri://route/plan/?slat=25.718727&amp;slon=100.193637&amp;sname=%E6%89%8D%E6%9D%91%E7%A0%81%E5%A4%B4&amp;dlat=25.696677&amp;dlon=100.169304&amp;dname=%E6%98%9F%E6%82%A6%E8%8A%B1%E5%BD%B1%C2%B7%E5%8F%A4%E5%9F%8E&amp;dev=0&amp;t=0">高德驾车回酒店</a>
+            </div>
+            <div id="leg-d2_caicun_hotel" class="leg-map"></div>
+          </div>
+        </div>
+      </div>
+      <div class="note">高铁票价/时刻为参考数字；购票看 12306。洱海边雨天防滑。</div>
+    </div>
+  </section>
+
+  <section class="section" id="day3">
+    <h2><span class="dot" style="background:var(--d3)"></span>Day3 · 10/10 丽江</h2>
+    <div class="day">
+      <div id="map-day3" class="day-map"></div>
+      <div class="day-legend">
+        <span class="pin-leg"><span class="pin-mini" style="background:var(--d3)">站</span>大理站</span>
+        <span class="pin-leg"><span class="pin-mini" style="background:var(--d3)">站</span>丽江站</span>
+        <span class="pin-leg"><span class="pin-mini" style="background:var(--d3)">宿</span>大水车</span>
+        <span class="pin-leg"><span class="pin-mini" style="background:var(--d3)">方</span>四方街</span>
+        <span class="pin-leg"><span class="pin-mini" style="background:var(--d3)">潭</span>黑龙潭</span>
+      </div>
+      <div class="timeline">
+        <div class="item">
+          <div class="time">上午</div>
+          <div class="item-body">
+            <div class="tagrow"><span class="mode taxi">打车</span><span class="mode hsr">高铁</span></div>
+            <strong>酒店 → 大理站 → 丽江站</strong>
+            <p class="roads">直达优先；若当日无直达则联程，参考约 <b>¥193</b>、傍晚到（美团示意）。以 12306 为准。</p>
+            <div class="links">
+              <a class="mini primary" href="amapuri://route/plan/?slat=25.696677&amp;slon=100.169304&amp;sname=%E6%98%9F%E6%82%A6%E8%8A%B1%E5%BD%B1%C2%B7%E5%8F%A4%E5%9F%8E&amp;dlat=25.589569&amp;dlon=100.250635&amp;dname=%E5%A4%A7%E7%90%86%E7%AB%99&amp;dev=0&amp;t=0">酒店→大理站</a>
+              <a class="mini" href="amapuri://navi?sourceApplication=yunnan_trip&amp;lon=100.250635&amp;lat=25.589569&amp;dev=0&amp;style=2">导航到大理站</a>
+            </div>
+            <div id="leg-d3_hotel_station" class="leg-map"></div>
+            <div id="leg-d3_hsr" class="leg-map"></div>
+          </div>
+        </div>
+        <div class="item">
+          <div class="time">到站</div>
+          <div class="item-body">
+            <div class="tagrow"><span class="mode taxi">打车主</span><span class="mode hotel">入住</span></div>
+            <strong>丽江站 → 龙跃·大水车酒店</strong>
+            <p class="roads">约 <b>10.5 km / 33′</b>。大水车/北门一带落客，勿开车进古城核心区。</p>
+            <div class="links">
+              <a class="mini primary" href="amapuri://route/plan/?slat=26.810521&amp;slon=100.252694&amp;sname=%E4%B8%BD%E6%B1%9F%E7%AB%99&amp;dlat=26.880918&amp;dlon=100.23138&amp;dname=%E9%BE%99%E8%B7%83%C2%B7%E5%A4%A7%E6%B0%B4%E8%BD%A6&amp;dev=0&amp;t=0">高德驾车</a>
+              <a class="mini" href="amapuri://navi?sourceApplication=yunnan_trip&amp;lon=100.23138&amp;lat=26.880918&amp;dev=0&amp;style=2">导航到酒店</a>
+            </div>
+            <div id="leg-d3_station_hotel" class="leg-map"></div>
+          </div>
+        </div>
+        <div class="item">
+          <div class="time">下午</div>
+          <div class="item-body">
+            <div class="tagrow"><span class="mode walk">古城短逛</span></div>
+            <strong>大水车 / 四方街</strong>
+            <p class="roads">酒店附近即可进古城；四方街短线，别钻深巷迷路。高原缓走、少喝酒。</p>
+            <div class="links">
+              <a class="mini primary" href="amapuri://navi?sourceApplication=yunnan_trip&amp;lon=100.233719&amp;lat=26.872156&amp;dev=0&amp;style=2">导航到四方街</a>
+              <a class="mini" href="amapuri://route/plan/?slat=26.880918&amp;slon=100.23138&amp;sname=%E9%BE%99%E8%B7%83%C2%B7%E5%A4%A7%E6%B0%B4%E8%BD%A6&amp;dlat=26.872156&amp;dlon=100.233719&amp;dname=%E5%9B%9B%E6%96%B9%E8%A1%97&amp;dev=0&amp;t=2">酒店→四方街（步行）</a>
+            </div>
+            <div id="leg-d3_hotel_sifang" class="leg-map"></div>
+          </div>
+        </div>
+        <div class="item">
+          <div class="time">傍晚</div>
+          <div class="item-body">
+            <div class="tagrow"><span class="mode taxi">打车主</span></div>
+            <strong>四方街 / 酒店 → 黑龙潭</strong>
+            <p class="roads">店→潭约 <b>1.6 km / 14′</b>。4A · 评分 4.7 · 约 07:30–21:00。天气好可看雪山倒影；玉龙雪山本日不排。</p>
+            <div class="links">
+              <a class="mini primary" href="amapuri://route/plan/?slat=26.880918&amp;slon=100.23138&amp;sname=%E9%BE%99%E8%B7%83%C2%B7%E5%A4%A7%E6%B0%B4%E8%BD%A6&amp;dlat=26.888448&amp;dlon=100.239852&amp;dname=%E9%BB%91%E9%BE%99%E6%BD%AD&amp;dev=0&amp;t=0">酒店→黑龙潭</a>
+              <a class="mini" href="amapuri://navi?sourceApplication=yunnan_trip&amp;lon=100.239852&amp;lat=26.888448&amp;dev=0&amp;style=2">导航到黑龙潭</a>
+            </div>
+            <div id="leg-d3_sifang_heilong" class="leg-map"></div>
+          </div>
+        </div>
+      </div>
+      <div class="note">丽江海拔较高：缓走、备常用药。夜间偏凉，薄外套。古城灯火可回大水车一带看，少折腾束河。</div>
+    </div>
+  </section>
+
+  <section class="section" id="day4">
+    <h2><span class="dot" style="background:var(--d4)"></span>Day4 · 10/11 返程</h2>
+    <div class="day">
+      <div id="map-day4" class="day-map"></div>
+      <div class="day-legend">
+        <span class="pin-leg"><span class="pin-mini" style="background:var(--d4)">宿</span>大水车酒店</span>
+        <span class="pin-leg"><span class="pin-mini" style="background:var(--d4)">机</span>三义机场</span>
+      </div>
+      <div class="timeline">
+        <div class="item">
+          <div class="time">出发</div>
+          <div class="item-body">
+            <div class="tagrow"><span class="mode taxi">打车主</span></div>
+            <strong>酒店 → 丽江三义机场</strong>
+            <p class="roads">约 <b>30 km / 40′</b>。建议起飞前 <b>2.5–3 小时</b>出发（含安检与余量）。航班时刻自备，本页忽略具体时刻。</p>
+            <div class="links">
+              <a class="mini primary" href="amapuri://route/plan/?slat=26.880918&amp;slon=100.23138&amp;sname=%E9%BE%99%E8%B7%83%C2%B7%E5%A4%A7%E6%B0%B4%E8%BD%A6&amp;dlat=26.671508&amp;dlon=100.24646&amp;dname=%E4%B8%89%E4%B9%89%E6%9C%BA%E5%9C%BA&amp;dev=0&amp;t=0">高德驾车</a>
+              <a class="mini" href="amapuri://navi?sourceApplication=yunnan_trip&amp;lon=100.24646&amp;lat=26.671508&amp;dev=0&amp;style=2">导航到三义机场</a>
+            </div>
+            <div id="leg-d4_hotel_airport" class="leg-map"></div>
+          </div>
+        </div>
+      </div>
+      <div class="warn">预留足量赶机时间；路况/排队以当日为准。行李前一晚整理好。</div>
+    </div>
+  </section>
+
+  <section class="section" id="tips">
+    <h2><span class="dot"></span>天气与注意</h2>
+    <div class="day">
+      <p class="roads">出发前参考约 <b>26℃</b>，有雨可能；丽江夜间更凉，薄外套。紫外线强：防晒+保湿。</p>
+      <p class="roads">门票：三塔等常见需预约——美团/官网提前确认。城际高铁票价仅作参考，勿当实时报价。</p>
+      <p class="roads">原则：古城外停车或打到门口；市内少走路；一日一城不硬塞雪山/双廊/石林。</p>
+    </div>
+  </section>
+
+  <footer>驾车时距：用户给定参考 + 高德核对 · 折线示意 · Leaflet + 高德瓦片</footer>
+</div>
+<script>
+const LEGS = {"d1_airport_hotel": [[25.099565, 102.935835], [25.067143, 102.720682]], "d1_hotel_cuihu": [[25.067143, 102.720682], [25.048416, 102.703621]], "d1_cuihu_jinma": [[25.048416, 102.703621], [25.033329, 102.709779]], "d1_jinma_haigeng": [[25.033329, 102.709779], [24.973588, 102.650825]], "d1_haigeng_hotel": [[24.973588, 102.650825], [25.067143, 102.720682]], "d2_hotel_station": [[25.067143, 102.720682], [25.015257, 102.722277]], "d2_hsr": [[25.015257, 102.722277], [25.589569, 100.250635]], "d2_station_hotel": [[25.589569, 100.250635], [25.696677, 100.169304]], "d2_hotel_santa": [[25.696677, 100.169304], [25.704129, 100.143044]], "d2_santa_caicun": [[25.704129, 100.143044], [25.718727, 100.193637]], "d2_caicun_hotel": [[25.718727, 100.193637], [25.696677, 100.169304]], "d3_hotel_station": [[25.696677, 100.169304], [25.589569, 100.250635]], "d3_hsr": [[25.589569, 100.250635], [26.810521, 100.252694]], "d3_station_hotel": [[26.810521, 100.252694], [26.880918, 100.23138]], "d3_hotel_sifang": [[26.880918, 100.23138], [26.872156, 100.233719]], "d3_sifang_heilong": [[26.872156, 100.233719], [26.888448, 100.239852]], "d4_hotel_airport": [[26.880918, 100.23138], [26.671508, 100.24646]]};
+const PLACES = {
+  changshui: { ll:[25.099565,102.935835], n:"机", name:"长水机场" },
+  km_hotel: { ll:[25.067143,102.720682], n:"宿", name:"如家精选·白云路" },
+  km_station: { ll:[25.015257,102.722277], n:"站", name:"昆明站" },
+  cuihu: { ll:[25.048416,102.703621], n:"翠", name:"翠湖公园" },
+  jinma: { ll:[25.033329,102.709779], n:"金", name:"金马碧鸡坊" },
+  haigeng: { ll:[24.973588,102.650825], n:"海", name:"海埂大坝" },
+  dl_station: { ll:[25.589569,100.250635], n:"站", name:"大理站" },
+  dl_hotel: { ll:[25.696677,100.169304], n:"宿", name:"星悦花影·古城" },
+  santa: { ll:[25.704129,100.143044], n:"塔", name:"崇圣寺三塔" },
+  caicun: { ll:[25.718727,100.193637], n:"才", name:"才村码头" },
+  lj_station: { ll:[26.810521,100.252694], n:"站", name:"丽江站" },
+  lj_hotel: { ll:[26.880918,100.23138], n:"宿", name:"龙跃·大水车" },
+  sifang: { ll:[26.872156,100.233719], n:"方", name:"四方街" },
+  heilong: { ll:[26.888448,100.239852], n:"潭", name:"黑龙潭" },
+  sanyi: { ll:[26.671508,100.24646], n:"机", name:"三义机场" }
+};
+const LEG_ENDS = {"d1_airport_hotel": ["changshui", "km_hotel"], "d1_hotel_cuihu": ["km_hotel", "cuihu"], "d1_cuihu_jinma": ["cuihu", "jinma"], "d1_jinma_haigeng": ["jinma", "haigeng"], "d1_haigeng_hotel": ["haigeng", "km_hotel"], "d2_hotel_station": ["km_hotel", "km_station"], "d2_hsr": ["km_station", "dl_station"], "d2_station_hotel": ["dl_station", "dl_hotel"], "d2_hotel_santa": ["dl_hotel", "santa"], "d2_santa_caicun": ["santa", "caicun"], "d2_caicun_hotel": ["caicun", "dl_hotel"], "d3_hotel_station": ["dl_hotel", "dl_station"], "d3_hsr": ["dl_station", "lj_station"], "d3_station_hotel": ["lj_station", "lj_hotel"], "d3_hotel_sifang": ["lj_hotel", "sifang"], "d3_sifang_heilong": ["sifang", "heilong"], "d4_hotel_airport": ["lj_hotel", "sanyi"]};
+const P = Object.fromEntries(Object.entries(PLACES).map(([k,v]) => [k, v.ll]));
+
+function addBasemap(m) {
+  const layers = [
+    L.tileLayer(
+      'https://wprd0{s}.is.autonavi.com/appmaptile?x={x}&y={y}&z={z}&lang=zh_cn&size=1&scl=1&style=7',
+      { maxZoom:18, subdomains:['1','2','3','4'], attribution:'&copy; 高德' }
+    ),
+    L.tileLayer(
+      'https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=7&x={x}&y={y}&z={z}',
+      { maxZoom:18, subdomains:['1','2','3','4'], attribution:'&copy; 高德' }
+    ),
+    L.tileLayer(
+      'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      { maxZoom:18, attribution:'&copy; OSM' }
+    )
+  ];
+  let idx = 0;
+  let fails = 0;
+  const arm = (layer) => {
+    layer.on('tileerror', () => {
+      fails++;
+      if (fails < 4) return;
+      fails = 0;
+      if (idx >= layers.length - 1) return;
+      m.removeLayer(layer);
+      idx++;
+      const next = layers[idx];
+      arm(next);
+      next.addTo(m);
+    });
+  };
+  arm(layers[0]);
+  layers[0].addTo(m);
+}
+function makeMap(el) {
+  const m = L.map(el, { scrollWheelZoom:false, attributionControl:false });
+  addBasemap(m);
+  return m;
+}
+function pinIcon(num, color) {
+  return L.divIcon({
+    className:'map-pin',
+    html:`<div class="pin-badge" style="background:${color||'#0f766e'}">${num}</div>`,
+    iconSize:[22,22], iconAnchor:[11,11], tooltipAnchor:[0,-14]
+  });
+}
+function addPlace(map, key, color) {
+  const p = PLACES[key];
+  if (!p) return;
+  L.marker(p.ll, { icon:pinIcon(p.n, color), zIndexOffset:600 })
+    .addTo(map)
+    .bindTooltip(p.name, { permanent:true, direction:'top', offset:[0,-12], className:'map-label', opacity:0.95 });
+}
+function addPlaces(map, keys, color) { keys.forEach(k => addPlace(map, k, color)); }
+function drawPoly(map, latlngs, color, markEnds) {
+  if(!latlngs||!latlngs.length) return;
+  L.polyline(latlngs,{color,weight:5,opacity:0.9}).addTo(map);
+  if (markEnds !== false) {
+    L.circleMarker(latlngs[0],{radius:7,color:'#fff',weight:2,fillColor:color,fillOpacity:1}).addTo(map);
+    L.circleMarker(latlngs[latlngs.length-1],{radius:7,color:'#fff',weight:2,fillColor:color,fillOpacity:1}).addTo(map);
+  }
+  map.fitBounds(L.latLngBounds(latlngs).pad(0.2));
+  setTimeout(()=>map.invalidateSize(),60);
+}
+function drawLeg(id, color) {
+  const key = id.replace('leg-','');
+  const m = makeMap(id);
+  drawPoly(m, LEGS[key], color, false);
+  const ends = LEG_ENDS[key] || [];
+  ends.forEach(k => addPlace(m, k, color));
+  if (ends.length) {
+    m.fitBounds(L.latLngBounds(ends.map(k => PLACES[k].ll)).pad(0.25));
+  }
+  setTimeout(() => m.invalidateSize(), 60);
+}
+
+const ov = makeMap('routeMap');
+[['d1_airport_hotel','d1_hotel_cuihu','d1_cuihu_jinma','d1_jinma_haigeng','d1_haigeng_hotel','#2563eb'],
+ ['d2_hotel_station','d2_hsr','d2_station_hotel','d2_hotel_santa','d2_santa_caicun','d2_caicun_hotel','#c2410c'],
+ ['d3_hotel_station','d3_hsr','d3_station_hotel','d3_hotel_sifang','d3_sifang_heilong','#7c3aed'],
+ ['d4_hotel_airport','#16a34a']].forEach(g=>{
+  const c=g[g.length-1];
+  g.slice(0,-1).forEach(k => drawPoly(ov, LEGS[k], c, false));
+});
+const OV_KEYS = ['changshui','km_hotel','cuihu','jinma','haigeng','km_station','dl_station','dl_hotel','santa','caicun','lj_station','lj_hotel','sifang','heilong','sanyi'];
+addPlaces(ov, OV_KEYS, '#0f766e');
+ov.fitBounds(L.latLngBounds(OV_KEYS.map(k => P[k])).pad(0.08));
+setTimeout(()=>ov.invalidateSize(),60);
+
+const m1 = makeMap('map-day1');
+['d1_airport_hotel','d1_hotel_cuihu','d1_cuihu_jinma','d1_jinma_haigeng','d1_haigeng_hotel'].forEach(k => drawPoly(m1, LEGS[k], '#2563eb', false));
+const D1_KEYS = ['changshui','km_hotel','cuihu','jinma','haigeng'];
+addPlaces(m1, D1_KEYS, '#2563eb');
+m1.fitBounds(L.latLngBounds(D1_KEYS.map(k => P[k])).pad(0.15));
+setTimeout(()=>m1.invalidateSize(),60);
+
+const m2 = makeMap('map-day2');
+['d2_hsr','d2_station_hotel','d2_hotel_santa','d2_santa_caicun','d2_caicun_hotel'].forEach(k => drawPoly(m2, LEGS[k], '#c2410c', false));
+const D2_KEYS = ['km_station','dl_station','dl_hotel','santa','caicun'];
+addPlaces(m2, D2_KEYS, '#c2410c');
+m2.fitBounds(L.latLngBounds(['dl_station','dl_hotel','santa','caicun'].map(k => P[k])).pad(0.2));
+setTimeout(()=>m2.invalidateSize(),60);
+
+const m3 = makeMap('map-day3');
+['d3_hsr','d3_station_hotel','d3_hotel_sifang','d3_sifang_heilong'].forEach(k => drawPoly(m3, LEGS[k], '#7c3aed', false));
+const D3_KEYS = ['dl_station','lj_station','lj_hotel','sifang','heilong'];
+addPlaces(m3, D3_KEYS, '#7c3aed');
+m3.fitBounds(L.latLngBounds(['lj_station','lj_hotel','sifang','heilong'].map(k => P[k])).pad(0.2));
+setTimeout(()=>m3.invalidateSize(),60);
+
+const m4 = makeMap('map-day4');
+drawPoly(m4, LEGS.d4_hotel_airport, '#16a34a', false);
+addPlaces(m4, ['lj_hotel','sanyi'], '#16a34a');
+m4.fitBounds(L.latLngBounds([P.lj_hotel, P.sanyi]).pad(0.2));
+setTimeout(()=>m4.invalidateSize(),60);
+
+['d1_airport_hotel','d1_hotel_cuihu','d1_cuihu_jinma','d1_jinma_haigeng','d1_haigeng_hotel'].forEach(k => drawLeg('leg-'+k, '#2563eb'));
+['d2_hotel_station','d2_hsr','d2_station_hotel','d2_hotel_santa','d2_santa_caicun','d2_caicun_hotel'].forEach(k => drawLeg('leg-'+k, '#c2410c'));
+['d3_hotel_station','d3_hsr','d3_station_hotel','d3_hotel_sifang','d3_sifang_heilong'].forEach(k => drawLeg('leg-'+k, '#7c3aed'));
+drawLeg('leg-d4_hotel_airport', '#16a34a');
+</script>
+</body>
+</html>
